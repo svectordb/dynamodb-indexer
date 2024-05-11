@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "test": "tsx src/test.ts",
+    "build": "(rm -r dist || true) && esbuild --bundle --platform=node src/index.ts --outfile=dist/index.js --minify && cd dist && zip index-$RANDOM.zip index.js && cd .."
+  },
+  "dependencies": {
+    "@svector/client": "^0.0.4",
+    "@tsconfig/node21": "^21.0.3",
+    "@types/aws-lambda": "^8.10.137",
+    "@types/node": "^20.12.11",
+    "pino": "^9.0.0"
+  }
+}
