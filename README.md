@@ -14,9 +14,17 @@ Records in the index contain only the partition and sort key of document, howeve
 
 ## Usage
 
-1. Compile the source code and upload the resulting zip file to an S3 bucket in the same region where you want to deploy the stack. Alternatively download the latest release from the releases page
+1. Download the latest compiled code from the [releases page](https://github.com/svectordb/dynamodb-indexer/releases/download/1.0/lambda-source.zip) or compile the source code yourself. To compile the source code, run the following commands:
 
-2. Deploy the CloudFormation stack using the provided template. The template requires the following parameters:
+    ```bash
+    cd code
+    npm install
+    npm run build
+    ```
+
+2. Upload the compiled code to an S3 bucket in your account
+
+3. Deploy the CloudFormation stack using the provided template. The template requires the following parameters:
 
     * `DynamoDbStreamArn` - The name of the DynamoDB stream to subscribe to
     * `SvectorDbIntegrationId` - The ID in your SvectorDB dashboard for the CloudFormation integration (ensure you've added your account ID to the allowed accounts list). See the [SvectorDB documentation](https://www.svectordb.com/docs/Integrations/CloudFormation/getting-started) for more information
@@ -27,7 +35,7 @@ Records in the index contain only the partition and sort key of document, howeve
     * `LambdaBucket` - The name of the S3 bucket where the Lambda code is stored
     * `LambdaKey` - The key of the Lambda code in the S3 bucket
 
-3. Once the stack has been created, the index will be updated in real-time as records are added, updated or deleted from the source table
+Once the stack has been created, the index will be updated in real-time as records are added, updated or deleted from the source table
 
 See the `code/src/demo.ts` file for an example of how to use the index to perform a nearest neighbour search.
 
