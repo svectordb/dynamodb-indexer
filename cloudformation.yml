@@ -1,0 +1,108 @@
+Parameters:
+  DynamoDbStreamArn:
+    Type: String
+    Description: The ARN of the target DynamoDB table's stream
+  SvectorDbIntegrationId:
+    Type: String
+    Description: Your account's Svector integration ID to allow the Lambda function to access the Svector API (https://dash.svectordb.com/integrations/)
+  VectorDimension:
+    Type: Number
+    Description: The dimension of the vectors to be stored in Svector
+    Default: 128
+  VectorDistanceMetric:
+    Type: String
+    Description: The distance metric to be used for vector similarity
+    AllowedValues:
+      - EUCLIDEAN
+      - DOT_PRODUCT
+      - COSINE
+    Default: EUCLIDEAN
+  VectorFieldToIndex:
+    Type: String
+    Description: The name of the field in your DynamoDB table that contains the vector to be indexed
+    Default: vector
+  DatabaseType:
+    Type: String
+    Description: The type of the database
+    AllowedValues:
+      - SANDBOX
+      - STANDARD
+    Default: SANDBOX
+  LambdaBucket:
+    Type: String
+    Description: The name of the S3 bucket where the Lambda function code is stored
+  LambdaKey:
+    Type: String
+    Description: The key of the Lambda function code in the S3 bucket
+Outputs:
+  DatabaseId:
+    Description: The ID of the Svector database
+    Value: !Ref SvectorDatabase
+    Export:
+      Name: !Sub ${AWS::StackName}-database-id
+  ApiKey:
+    Description: API key to access the database
+    Value: !Ref SvectorApiKey
+    Export:
+      Name: !Sub ${AWS::StackName}-api-key
+Resources:
+  SvectorDatabase:
+    Type: SvectorDB::VectorDatabase::Database
+    Properties:
+      IntegrationId: !Ref SvectorDbIntegrationId
+      Name: !Sub ${AWS::StackName}
+      Type: !Ref DatabaseType
+      Metric: !Ref VectorDistanceMetric
+      Dimension: !Ref VectorDimension
+  SvectorApiKey:
+    Type: SvectorDB::VectorDatabase::ApiKey
+    Properties:
+      IntegrationId: !Ref SvectorDbIntegrationId
+      DatabaseId: !Ref SvectorDatabase
+  IngestFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt IngestFunctionRole.Arn
+      Code:
+        S3Bucket: !Ref LambdaBucket
+        S3Key: !Ref LambdaKey
+      Runtime: nodejs20.x
+      Environment:
+        Variables:
+          DATABASE_ID: !Ref SvectorDatabase
+          API_KEY: !Ref SvectorApiKey
+          FIELD_NAME: !Ref VectorFieldToIndex
+          FIELD_DIMENSION: !Ref VectorDimension
+      Timeout: 30
+  IngestFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBStreamPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                Resource: !Ref DynamoDbStreamArn
+  IngestFunctionEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+     EventSourceArn: !Ref DynamoDbStreamArn
+     FunctionName: !GetAtt IngestFunction.Arn
+     BatchSize: 25
+     StartingPosition: TRIM_HORIZON
